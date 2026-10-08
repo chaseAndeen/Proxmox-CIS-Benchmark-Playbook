@@ -8,3 +8,16 @@
     - name: Print message
       ansible.builtin.debug:
         msg: Hello world
+
+    - name: Write a message of the day
+      ansible.builtin.copy:
+        content: |
+          **********
+          {{ ansible_facts['hostname'] }} is managed by CIS Benchmark Playbook
+          {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}
+          Last applied: {{ ansible_date_time.iso8601 }}
+          **********
+        dest: /etc/motd
+        owner: root
+        group: root
+        mode: '0644'

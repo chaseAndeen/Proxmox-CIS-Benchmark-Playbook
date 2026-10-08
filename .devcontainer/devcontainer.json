@@ -1,0 +1,23 @@
+{
+  "name": "Ansible Playbook Development",
+  "image": "mcr.microsoft.com/devcontainers/python:1-3.12-bookworm",
+  "remoteUser": "vscode",
+  "updateRemoteUserUID": true,
+  "postCreateCommand": "python -m pip install --no-cache-dir ansible-core ansible-lint && ansible --version && ansible-lint --version",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "redhat.ansible",
+        "redhat.vscode-yaml"
+      ],
+      "settings": {
+        "files.associations": {
+          "*.yaml": "yaml",
+          "*.yml": "yaml"
+        },
+        "ansible.lint.enabled": true,
+        "ansible.validation.enabled": true
+      }
+    }
+  }
+}

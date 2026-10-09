@@ -2,22 +2,90 @@
   hosts:
     - proxmox
   tasks:
-    - name: Ping my hosts
-      ansible.builtin.ping:
-
-    - name: Print message
-      ansible.builtin.debug:
-        msg: Hello world
-
     - name: Write a message of the day
       ansible.builtin.copy:
         content: |
           **********
           {{ ansible_facts['hostname'] }} is managed by CIS Benchmark Playbook
           {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}
-          Last applied: {{ ansible_date_time.iso8601 }}
+          Last applied: {{ ansible_facts['date_time']['iso8601'] }}
           **********
         dest: /etc/motd
         owner: root
         group: root
         mode: '0644'
+
+    # 1.1.1.1 Ensure cramfs kernel module is not available
+    - name: Check whether cramfs module is available
+      ansible.builtin.shell: |
+        {
+          l_mod_name="cramfs"
+          l_mod_type="fs"
+          while IFS= read -r l_mod_path; do
+            if [ -d "$l_mod_path/${l_mod_name//-/\/}" ] &&
+              [ -n "$(ls -A "$l_mod_path/${l_mod_name//-/\/}")" ]; then
+              printf '%s\n' "$l_mod_name exists in $l_mod_path"
+            fi
+          done < <(
+            readlink -e /usr/lib/modules/**/kernel/"$l_mod_type" ||
+            readlink -e /lib/modules/**/kernel/"$l_mod_type"
+          )
+        }
+      args:
+        executable: /bin/bash
+      register: cramfs_module_paths
+      changed_when: false
+
+    - name: Skip cramfs audit because module is not present
+      ansible.builtin.debug:
+        msg: "cramfs module files are not present; control is not applicable."
+      when: cramfs_module_paths.stdout | length == 0
+
+    - name: Enforce cramfs control
+      when: cramfs_module_paths.stdout | length > 0
+      block:
+        - name: Check whether cramfs is currently loaded
+          ansible.builtin.command: grep -q '^cramfs ' /proc/modules
+          register: cramfs_loaded
+          changed_when: false
+          failed_when: false
+
+        - name: Unload cramfs kernel module when loaded
+          ansible.builtin.shell: modprobe -r cramfs 2>/dev/null || rmmod cramfs 2>/dev/null
+          changed_when: true
+          when: cramfs_loaded.rc == 0
+
+        - name: Disable cramfs module loading
+          ansible.builtin.copy:
+            path: /etc/modprobe.d/60-cramfs.conf
+            content: |
+              install cramfs /bin/false
+              blacklist cramfs
+            owner: root
+            group: root
+            mode: '0644'
+
+        - name: Check whether cramfs remains loaded
+          ansible.builtin.command: grep -q '^cramfs ' /proc/modules
+          register: cramfs_loaded_post
+          changed_when: false
+          failed_when: false
+
+        - name: Verify cramfs is blocked from loading
+          ansible.builtin.shell: |
+            set -o pipefail
+            modprobe --showconfig | grep -P -- '\bblacklist\h+cramfs\b' >/dev/null &&
+            modprobe --showconfig | grep -P -- '\binstall\h+cramfs\h+/bin/(false|true)\b' >/dev/null
+          args:
+            executable: /bin/bash
+          register: cramfs_audit_config_post
+          changed_when: false
+          failed_when: false
+
+        - name: Assert cramfs kernel module is not available after remediation
+          ansible.builtin.assert:
+            that:
+              - cramfs_loaded_post.rc == 1
+              - cramfs_audit_config_post.rc == 0
+            fail_msg: cramfs is loaded or its modprobe configuration does not disable loading.
+            success_msg: cramfs is not loaded and is disabled by modprobe configuration.

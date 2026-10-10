@@ -29,7 +29,9 @@ jobs:
           python -m pip install ansible-core ansible-lint
 
       - name: Check Ansible syntax
-        run: ansible-playbook --syntax-check -i inventory.yaml playbook.yaml
+        run: |
+          ansible-playbook --syntax-check -i inventory.yaml audit.yaml
+          ansible-playbook --syntax-check -i inventory.yaml remediate.yaml
 
       - name: Lint Ansible files
-        run: ansible-lint .
+        run: ansible-lint audit.yaml remediate.yaml tasks/*.yaml

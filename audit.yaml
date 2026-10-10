@@ -1,0 +1,52 @@
+---
+
+- name: CIS Benchmark Playbook
+  hosts:
+    - proxmox
+
+  tasks:
+    - name: Initialize compliance summary
+      ansible.builtin.set_fact:
+        checks_passed: []
+        checks_failed: []
+        checks_not_applicable: []
+
+    - name: Import audit tasks
+      ansible.builtin.include_tasks:
+        file: tasks/1_1_1_x_audit.yaml
+
+    - name: Calculate compliance score
+      ansible.builtin.set_fact:
+        compliance_score: >-
+          {{
+            (
+              (
+                checks_passed | length * 100
+                / (checks_passed | length + checks_failed | length)
+              ) | round(1)
+            ) ~ '%'
+            if (checks_passed | length + checks_failed | length) > 0
+            else 'N/A (no applicable controls)'
+          }}
+
+    - name: Print compliance summary
+      ansible.builtin.debug:
+        msg: |
+          ========================================
+          Compliance Report for {{ inventory_hostname }}
+          Date: {{ ansible_facts['date_time']['iso8601'] }}
+          ========================================
+          PASSED: {{ checks_passed | length }}
+          {% for check in checks_passed %}
+            [PASS] {{ check }}
+          {% endfor %}
+          FAILED: {{ checks_failed | length }}
+          {% for check in checks_failed %}
+            [FAIL] {{ check }}
+          {% endfor %}
+          NOT APPLICABLE: {{ checks_not_applicable | length }}
+          {% for check in checks_not_applicable %}
+            [N/A] {{ check }}
+          {% endfor %}
+          ========================================
+          Score: {{ compliance_score }}

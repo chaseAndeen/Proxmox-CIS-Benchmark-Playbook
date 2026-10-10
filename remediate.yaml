@@ -1,0 +1,14 @@
+---
+
+- name: CIS Benchmark Playbook
+  hosts:
+    - proxmox
+
+  tasks:
+    - name: Import audit tasks
+      ansible.builtin.include_tasks:
+        file: tasks/1_1_1_x_audit.yaml
+
+    - name: Import remediation tasks
+      ansible.builtin.include_tasks:
+        file: tasks/1_1_1_x_remediation.yaml

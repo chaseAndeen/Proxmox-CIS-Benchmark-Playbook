@@ -1,0 +1,20 @@
+---
+
+# 1.1.1.1 Ensure cramfs kernel module is not available
+- name: Enforce cramfs control
+  when: cramfs_module_paths.stdout | length > 0
+  block:
+    - name: Unload cramfs kernel module when loaded
+      ansible.builtin.shell: modprobe -r cramfs 2>/dev/null || rmmod cramfs 2>/dev/null
+      changed_when: true
+      when: cramfs_loaded.stdout | length > 0
+
+    - name: Disable cramfs module loading
+      ansible.builtin.copy:
+        dest: /etc/modprobe.d/60-cramfs.conf
+        content: |
+          install cramfs /bin/false
+          blacklist cramfs
+        owner: root
+        group: root
+        mode: '0644'

@@ -1,0 +1,98 @@
+---
+
+# 1.1.1.1 Ensure cramfs kernel module is not available
+- name: Check whether cramfs module is available
+  ansible.builtin.shell: |
+    {
+      l_mod_name="cramfs"
+      l_mod_type="fs"
+      while IFS= read -r l_mod_path; do
+        if [ -d "$l_mod_path/${l_mod_name//-/\/}" ] &&
+          [ -n "$(ls -A "$l_mod_path/${l_mod_name//-/\/}")" ]; then
+          printf '%s\n' "$l_mod_name exists in $l_mod_path"
+        fi
+      done < <(
+        readlink -e /usr/lib/modules/**/kernel/"$l_mod_type" ||
+        readlink -e /lib/modules/**/kernel/"$l_mod_type"
+      )
+    }
+  args:
+    executable: /bin/bash
+  register: cramfs_module_paths
+  changed_when: false
+
+- name: Skip cramfs audit because module is not present
+  ansible.builtin.debug:
+    msg: "cramfs module files are not present; control is not applicable."
+  when: cramfs_module_paths.stdout | length == 0
+
+- name: Record cramfs control as not applicable
+  ansible.builtin.set_fact:
+    checks_not_applicable: "{{ (checks_not_applicable | default([])) + ['1.1.1.1 Ensure cramfs kernel module is not available'] }}"
+  when: cramfs_module_paths.stdout | length == 0
+
+- name: Check whether cramfs is currently loaded
+  when: cramfs_module_paths.stdout | length > 0
+  block:
+    - name: Check whether cramfs is currently loaded
+      ansible.builtin.shell: |
+        set -o pipefail
+        lsmod | grep -w '^cramfs'
+      register: cramfs_loaded
+      changed_when: false
+      failed_when: false
+
+    - name: Check for cramfs modprobe blacklist directive
+      ansible.builtin.shell: |
+        set -o pipefail
+        modprobe --showconfig | grep -P -- '\bblacklist\h+cramfs\b'
+      args:
+        executable: /bin/bash
+      register: cramfs_blacklist
+      changed_when: false
+      failed_when: false
+
+    - name: Check for cramfs modprobe install directive
+      ansible.builtin.shell: |
+        set -o pipefail
+        modprobe --showconfig | grep -P -- '\binstall\h+cramfs\h+/bin/(false|true)\b'
+      args:
+        executable: /bin/bash
+      register: cramfs_install
+      changed_when: false
+      failed_when: false
+
+- name: Record cramfs audit failures
+  ansible.builtin.set_fact:
+    cramfs_audit_failures: >-
+      {{
+        (['cramfs is currently loaded in /proc/modules.']
+         if cramfs_loaded.stdout | length > 0 else [])
+        + (['No modprobe blacklist directive for cramfs was found.']
+           if cramfs_blacklist.rc != 0 else [])
+        + (['No modprobe install directive disabling cramfs with /bin/false or /bin/true was found.']
+           if cramfs_install.rc != 0 else [])
+      }}
+  when: cramfs_module_paths.stdout | length > 0
+
+- name: Set cramfs audit status
+  ansible.builtin.set_fact:
+    cramfs_audit_passed: "{{ cramfs_audit_failures | length == 0 }}"
+  when: cramfs_module_paths.stdout | length > 0
+
+- name: Add cramfs result to compliance summary
+  ansible.builtin.set_fact:
+    checks_passed: >-
+      {{
+        (checks_passed | default([]))
+        + (['1.1.1.1 Ensure cramfs kernel module is not available']
+           if cramfs_audit_passed | default(false) else [])
+      }}
+    checks_failed: >-
+      {{
+        (checks_failed | default([]))
+        + (['1.1.1.1 Ensure cramfs kernel module is not available: '
+            ~ (cramfs_audit_failures | default([]) | join(' '))]
+           if not (cramfs_audit_passed | default(false)) else [])
+      }}
+  when: cramfs_module_paths.stdout | length > 0

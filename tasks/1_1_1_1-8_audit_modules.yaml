@@ -25,6 +25,22 @@
     msg: "{{ module_name }} module files are not present; control is not applicable."
   when: module_paths.stdout | length == 0
 
+- name: Record module availability state for {{ module_name }}
+  ansible.builtin.set_fact:
+    module_status: >-
+      {{
+        (module_status | default({}))
+        | combine({
+            module_name: {
+              'present': false,
+              'loaded': false,
+              'blacklisted': false,
+              'install_disabled': false
+            }
+          }, recursive=True)
+      }}
+  when: module_paths.stdout | length == 0
+
 - name: Record control as not applicable for {{ module_name }}
   ansible.builtin.set_fact:
     checks_not_applicable: "{{ (checks_not_applicable | default([])) + ['1.1.1.1-8 Ensure ' ~ module_name ~ ' kernel module is not available'] }}"
@@ -71,6 +87,22 @@
            if module_blacklist.rc != 0 else [])
         + (['No modprobe install directive disabling ' ~ module_name ~ ' with /bin/false or /bin/true was found.']
            if module_install.rc != 0 else [])
+      }}
+  when: module_paths.stdout | length > 0
+
+- name: Record module audit state for {{ module_name }}
+  ansible.builtin.set_fact:
+    module_status: >-
+      {{
+        (module_status | default({}))
+        | combine({
+            module_name: {
+              'present': true,
+              'loaded': (module_loaded.stdout | length > 0),
+              'blacklisted': (module_blacklist.rc == 0),
+              'install_disabled': (module_install.rc == 0)
+            }
+          }, recursive=True)
       }}
   when: module_paths.stdout | length > 0
 

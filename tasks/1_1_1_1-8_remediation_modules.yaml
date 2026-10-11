@@ -1,12 +1,19 @@
 ---
 
 - name: Enforce control kernal module {{ module_name }}
-  when: module_paths.stdout | length > 0
+  vars:
+    module_result: "{{ (module_status | default({}))[module_name] | default({}) }}"
+  when: >-
+    module_result.present | default(false)
+    and not (
+      (module_result.blacklisted | default(false))
+      and (module_result.install_disabled | default(false))
+    )
   block:
     - name: Unload kernel module {{ module_name }}
       ansible.builtin.shell: modprobe -r {{ module_name }} 2>/dev/null || rmmod {{ module_name }} 2>/dev/null
       changed_when: true
-      when: module_loaded.stdout | length > 0
+      when: module_result.loaded | default(false)
 
     - name: Disable loading for {{ module_name }}
       ansible.builtin.copy:

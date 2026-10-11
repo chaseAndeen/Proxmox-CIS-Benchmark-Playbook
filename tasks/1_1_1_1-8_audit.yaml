@@ -1,0 +1,8 @@
+---
+
+- name: Check whether modules are available
+  ansible.builtin.include_tasks:
+    file: tasks/1_1_1_1-8_audit_modules.yaml
+  loop: "{{ disabled_modules }}"
+  loop_control:
+    loop_var: module_name

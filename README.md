@@ -3,7 +3,7 @@
 Ansible Playbook for implementing the Debian 13 CIS benchmark.
 
 
-## CIS 1.1.1.1
+## CIS 1.1.1.1-8
 
 ### Usage:
 

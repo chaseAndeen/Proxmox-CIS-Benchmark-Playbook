@@ -3,6 +3,8 @@
 - name: CIS Benchmark Playbook
   hosts:
     - proxmox
+  vars_files:
+    - vars/main.yaml
 
   tasks:
     - name: Initialize compliance summary
@@ -13,7 +15,7 @@
 
     - name: Import audit tasks
       ansible.builtin.include_tasks:
-        file: tasks/1_1_1_x_audit.yaml
+        file: tasks/1_1_1_1-8_audit.yaml
 
     - name: Calculate compliance score
       ansible.builtin.set_fact:

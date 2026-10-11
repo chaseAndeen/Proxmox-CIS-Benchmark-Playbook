@@ -1,0 +1,19 @@
+---
+
+- name: Enforce control kernal module {{ module_name }}
+  when: module_paths.stdout | length > 0
+  block:
+    - name: Unload kernel module {{ module_name }}
+      ansible.builtin.shell: modprobe -r {{ module_name }} 2>/dev/null || rmmod {{ module_name }} 2>/dev/null
+      changed_when: true
+      when: module_loaded.stdout | length > 0
+
+    - name: Disable loading for {{ module_name }}
+      ansible.builtin.copy:
+        dest: /etc/modprobe.d/60-{{ module_name }}.conf
+        content: |
+          install {{ module_name }} /bin/false
+          blacklist {{ module_name }}
+        owner: root
+        group: root
+        mode: '0644'

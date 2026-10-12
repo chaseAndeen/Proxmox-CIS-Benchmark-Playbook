@@ -20,6 +20,11 @@
   register: module_paths
   changed_when: false
 
+# WIP - This is a work in progress to convert the module strings into a correct rexeg pattern to match the module name in in the lsmod step.
+- name: Build module name match pattern for {{ module_name.name }}
+  ansible.builtin.set_fact:
+    module_name_pattern: "{{ module_name.name | regex_replace('[-_]', '(_|-)') }}"
+
 - name: Skip audit because module is not present for {{ module_name }}
   ansible.builtin.debug:
     msg: "{{ module_name }} module files are not present; control is not applicable."

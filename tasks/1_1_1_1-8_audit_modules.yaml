@@ -52,7 +52,7 @@
     - name: Check whether module is currently loaded for {{ module_name }}
       ansible.builtin.shell: |
         set -o pipefail
-        lsmod | grep -w '^{{ module_name }}$'
+        lsmod | grep {{ module_name }}
       register: module_loaded
       changed_when: false
       failed_when: false

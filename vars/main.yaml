@@ -8,4 +8,4 @@ disabled_modules:
   - jffs2
   - overlay
   - squashfs
-  - firewire-core
+  - udf

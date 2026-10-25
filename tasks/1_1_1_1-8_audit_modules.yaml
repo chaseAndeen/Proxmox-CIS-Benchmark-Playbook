@@ -126,7 +126,7 @@
     checks_passed: >-
       {{
         (checks_passed | default([]))
-        + (['1.1.1.1-8 Ensure ' ~ module.name ~ ' kernel module is not available']
+        + ([module.control_id ~ ' Ensure ' ~ module.name ~ ' kernel module is not available']
            if audit_passed | default(false) else [])
       }}
     checks_failed: >-

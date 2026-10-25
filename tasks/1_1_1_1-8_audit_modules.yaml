@@ -1,10 +1,14 @@
 ---
 
-- name: Check whether module is available for {{ module_name }}
+- name: Announce current CIS control
+  ansible.builtin.debug:
+    msg: "Starting {{ module.control_id }}: Ensure {{ module.name }} kernel module is not available"
+
+- name: Check whether module is available for {{ module.name }}
   ansible.builtin.shell: |
     {
-      l_mod_name="{{ module_name }}"
-      l_mod_type="fs"
+      l_mod_name="{{ module.name }}"
+      l_mod_type="{{ module.lookup_type }}"
       while IFS= read -r l_mod_path; do
         if [ -d "$l_mod_path/${l_mod_name//-/\/}" ] &&
           [ -n "$(ls -A "$l_mod_path/${l_mod_name//-/\/}")" ]; then
@@ -20,18 +24,18 @@
   register: module_paths
   changed_when: false
 
-- name: Skip audit because module is not present for {{ module_name }}
+- name: Skip audit because module is not present for {{ module.name }}
   ansible.builtin.debug:
-    msg: "{{ module_name }} module files are not present; control is not applicable."
+    msg: "{{ module.name }} module files are not present; control is not applicable."
   when: module_paths.stdout | length == 0
 
-- name: Record module availability state for {{ module_name }}
+- name: Record module availability state for {{ module.name }}
   ansible.builtin.set_fact:
     module_status: >-
       {{
         (module_status | default({}))
         | combine({
-            module_name: {
+            module.name: {
               'present': false,
               'loaded': false,
               'blacklisted': false,
@@ -41,62 +45,66 @@
       }}
   when: module_paths.stdout | length == 0
 
-- name: Record control as not applicable for {{ module_name }}
+- name: Record control as not applicable for {{ module.name }}
   ansible.builtin.set_fact:
-    checks_not_applicable: "{{ (checks_not_applicable | default([])) + ['1.1.1.1-8 Ensure ' ~ module_name ~ ' kernel module is not available'] }}"
+    checks_not_applicable: "{{ (checks_not_applicable | default([])) + [module.control_id ~  ' Ensure ' ~ module.name ~ ' kernel module is not available'] }}"
   when: module_paths.stdout | length == 0
 
-- name: Check whether module is currently loaded for {{ module_name }}
+- name: Check whether module is currently loaded for {{ module.name }}
   when: module_paths.stdout | length > 0
   block:
-    - name: Check whether module is currently loaded for {{ module_name }}
+    - name: Build module name match pattern for {{ module.name }}
+      ansible.builtin.set_fact:
+        module_name_pattern: "{{ module.name | regex_replace('[-_]', '(_|-)') }}"
+
+    - name: Check whether module is currently loaded for {{ module.name }}
       ansible.builtin.shell: |
         set -o pipefail
-        lsmod | grep {{ module_name }}
+        lsmod | grep -P -- '{{ module_name_pattern }}'
       register: module_loaded
       changed_when: false
       failed_when: false
 
-    - name: Check for modprobe blacklist directive for {{ module_name }}
+    - name: Check for modprobe blacklist directive for {{ module.name }}
       ansible.builtin.shell: |
         set -o pipefail
-        modprobe --showconfig | grep -P -- '\bblacklist\h+{{ module_name }}\b'
+        modprobe --showconfig | grep -P -- '\bblacklist\h+{{ module_name_pattern }}\b'
       args:
         executable: /bin/bash
       register: module_blacklist
       changed_when: false
       failed_when: false
 
-    - name: Check for modprobe install directive for {{ module_name }}
+    - name: Check for modprobe install directive for {{ module.name }}
       ansible.builtin.shell: |
         set -o pipefail
-        modprobe --showconfig | grep -P -- '\binstall\h+{{ module_name }}\h+/bin/(false|true)\b'
+        modprobe --showconfig | grep -P -- '\binstall\h+{{ module_name_pattern }}\h+/bin/(false|true)\b'
       args:
         executable: /bin/bash
       register: module_install
       changed_when: false
       failed_when: false
 
-- name: Record audit failures for {{ module_name }}
+- name: Record audit failures for {{ module.name }}
   ansible.builtin.set_fact:
     audit_failures: >-
       {{
-        ([module_name ~ ' is currently loaded in /proc/modules.']
+        ([module.name ~ ' is currently loaded in /proc/modules.']
          if module_loaded.stdout | length > 0 else [])
-        + (['No modprobe blacklist directive for ' ~ module_name ~ ' was found.']
+        + (['No modprobe blacklist directive for ' ~ module.name ~ ' was found.']
            if module_blacklist.rc != 0 else [])
-        + (['No modprobe install directive disabling ' ~ module_name ~ ' with /bin/false or /bin/true was found.']
+        + (['No modprobe install directive disabling ' ~ module.name ~ ' with /bin/false or /bin/true was found.']
            if module_install.rc != 0 else [])
       }}
   when: module_paths.stdout | length > 0
 
-- name: Record module audit state for {{ module_name }}
+- name: Record module audit state for {{ module.name }}
   ansible.builtin.set_fact:
     module_status: >-
       {{
         (module_status | default({}))
         | combine({
-            module_name: {
+            module.name: {
               'present': true,
               'loaded': (module_loaded.stdout | length > 0),
               'blacklisted': (module_blacklist.rc == 0),
@@ -106,23 +114,23 @@
       }}
   when: module_paths.stdout | length > 0
 
-- name: Set audit status for {{ module_name }}
+- name: Set audit status for {{ module.name }}
   ansible.builtin.set_fact:
     audit_passed: "{{ audit_failures | length == 0 }}"
   when: module_paths.stdout | length > 0
 
-- name: Add result to compliance summary for {{ module_name }}
+- name: Add result to compliance summary for {{ module.name }}
   ansible.builtin.set_fact:
     checks_passed: >-
       {{
         (checks_passed | default([]))
-        + (['1.1.1.1-8 Ensure ' ~ module_name ~ ' kernel module is not available']
+        + ([module.control_id ~ ' Ensure ' ~ module.name ~ ' kernel module is not available']
            if audit_passed | default(false) else [])
       }}
     checks_failed: >-
       {{
         (checks_failed | default([]))
-        + (['1.1.1.1-8 Ensure ' ~ module_name ~ ' kernel module is not available: '
+        + ([module.control_id ~ ' Ensure ' ~ module.name ~ ' kernel module is not available: '
             ~ (audit_failures | default([]) | join(' '))]
            if not (audit_passed | default(false)) else [])
       }}

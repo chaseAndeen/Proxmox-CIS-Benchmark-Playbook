@@ -5,34 +5,42 @@
 disabled_modules:
   - name: cramfs
     control_id: "1.1.1.1"
+    lookup_name: "cramfs"
     lookup_type: "fs"
 
   - name: freevxfs
     control_id: "1.1.1.2"
+    lookup_name: "freevxfs"
     lookup_type: "fs"
 
   - name: hfs
     control_id: "1.1.1.3"
+    lookup_name: "hfs"
     lookup_type: "fs"
 
   - name: hfsplus
     control_id: "1.1.1.4"
+    lookup_name: "hfsplus"
     lookup_type: "fs"
 
   - name: jffs2
     control_id: "1.1.1.5"
+    lookup_name: "jffs2"
     lookup_type: "fs"
 
   - name: overlay
     control_id: "1.1.1.6"
+    lookup_name: "overlay"
     lookup_type: "fs"
 
   - name: squashfs
     control_id: "1.1.1.7"
+    lookup_name: "squashfs"
     lookup_type: "fs"
 
   - name: udf
     control_id: "1.1.1.8"
+    lookup_name: "udf"
     lookup_type: "fs"
 
   - name: firewire-core

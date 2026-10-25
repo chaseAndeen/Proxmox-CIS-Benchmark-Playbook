@@ -5,4 +5,4 @@
     file: tasks/1_1_1_1-8_remediation_modules.yaml
   loop: "{{ disabled_modules }}"
   loop_control:
-    loop_var: module_name
+    loop_var: module

@@ -1,7 +1,5 @@
 ---
 
-# WIP - Converting Module strings into a list of records with needed metadata for the audit tasks to use. 
-# This will allow for easier maintenance and expansion of the module list in the future.
 disabled_modules:
   - name: cramfs
     control_id: "1.1.1.1"

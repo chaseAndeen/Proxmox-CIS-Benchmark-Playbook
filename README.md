@@ -14,7 +14,7 @@ ansible-playbook -i inventory.yaml audit.yaml
 
 Executing an audit with automatic remediation:
 ```
-ansible-playbook -i inventory.yaml remnediate.yaml
+ansible-playbook -i inventory.yaml remediate.yaml
 ```
 
 ---

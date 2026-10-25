@@ -53,11 +53,9 @@
 - name: Check whether module is currently loaded for {{ module.name }}
   when: module_paths.stdout | length > 0
   block:
-    # WIP - This is a work in progress to convert the module strings into a correct rexeg pattern to match the module name in in the lsmod step.
     - name: Build module name match pattern for {{ module.name }}
       ansible.builtin.set_fact:
         module_name_pattern: "{{ module.name | regex_replace('[-_]', '(_|-)') }}"
-
 
     - name: Check whether module is currently loaded for {{ module.name }}
       ansible.builtin.shell: |
